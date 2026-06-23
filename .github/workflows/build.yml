@@ -11,17 +11,8 @@ name: Build and Publish
 on:
   push:
     branches: [main]
-    paths:
-      - "main.go"
-      - "go.mod"
-      - "Dockerfile"
-      - ".github/workflows/build.yml"
-  pull_request:
-    paths:
-      - "main.go"
-      - "go.mod"
-      - "Dockerfile"
   workflow_dispatch:
+
 
 env:
   REGISTRY_DOCKERHUB: docker.io
