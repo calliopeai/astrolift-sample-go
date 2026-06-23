@@ -1,0 +1,69 @@
+name: Build and Publish
+
+# Builds the astrolift-sample-go fixture image and pushes to Docker Hub
+# (docker.io/calliopeai/astrolift-sample-go), tagged main-<sha7> + latest.
+# Mirrors astrolift-agents/.github/workflows/build-images.yml: docker/
+# login-action@v3 with the org-level secrets DOCKERHUB_USERNAME /
+# DOCKERHUB_TOKEN (visibility=ALL, inherited by all calliopeai repos).
+#
+# Deterministic main-<sha7> tags are what deploys pin to (campaign blocker
+# B3 — no bare latest for deploy); latest is published for convenience only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "main.go"
+      - "go.mod"
+      - "Dockerfile"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "main.go"
+      - "go.mod"
+      - "Dockerfile"
+  workflow_dispatch:
+
+env:
+  REGISTRY_DOCKERHUB: docker.io
+  NAMESPACE: calliopeai
+  IMAGE: astrolift-sample-go
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute tags
+        id: tags
+        run: |
+          echo "sha=main-${GITHUB_SHA::7}" >>"$GITHUB_OUTPUT"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "push=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "push=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to Docker Hub
+        if: steps.tags.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_DOCKERHUB }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg "GIT_SHA=${{ steps.tags.outputs.sha }}" \
+            -t "${REGISTRY_DOCKERHUB}/${NAMESPACE}/${IMAGE}:${{ steps.tags.outputs.sha }}" \
+            -t "${REGISTRY_DOCKERHUB}/${NAMESPACE}/${IMAGE}:latest" \
+            .
+
+      - name: Push tags (Docker Hub)
+        if: steps.tags.outputs.push == 'true'
+        run: |
+          docker push "${REGISTRY_DOCKERHUB}/${NAMESPACE}/${IMAGE}:${{ steps.tags.outputs.sha }}"
+          docker push "${REGISTRY_DOCKERHUB}/${NAMESPACE}/${IMAGE}:latest"

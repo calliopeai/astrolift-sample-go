@@ -1,0 +1,32 @@
+# astrolift-sample-go — single public deployment (spec 42, R3).
+#
+# Authored against the grounded §4 manifest schema (astrolift_manifest
+# parser). Renders a Deployment + Service (primary container port > 0).
+# image_ref pins the pre-built Docker Hub image (no platform build this
+# increment); bump the main-<sha7> tag to the digest CI published.
+
+name = "sample-go"
+
+[[workloads]]
+name = "web"
+kind = "deployment"
+is_public = true
+replicas = 1
+cpu_request = "50m"
+cpu_limit = "250m"
+memory_request = "64Mi"
+memory_limit = "128Mi"
+
+  [[workloads.containers]]
+  name = "app"
+  is_primary = true
+  image_ref = "docker.io/calliopeai/astrolift-sample-go:main-<sha>"
+  port = 8080
+
+    [workloads.containers.env]
+    LOG_LEVEL = "info"
+
+    [workloads.containers.healthcheck]
+    kind = "http"
+    value = "/health"
+    port = 8080
